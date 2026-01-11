@@ -1,3 +1,17 @@
+# Voxalyzer
+
+## Checkout
+
+Music2Emotion is linked as submodule in the repo. Either checkout via
+
+```bash
+git clone --recurse-submodules https://github.com/gandulf/Voxalyzer.git
+```
+or call 
+```bash
+git submodule update --init --recursive
+```
+after regular checkout.
 ## Setup
 
 Before you can run the Voxalyzer [Music2Emotion](https://github.com/AMAAI-Lab/Music2Emotion) has to be setup by installing it's requirements.
