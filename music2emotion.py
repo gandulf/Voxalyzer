@@ -12,6 +12,8 @@ from mutagen.id3 import ID3, TXXX, COMM
 
 import numpy as np
 
+from mapping import collapse_mood_tags
+
 # --------------------------------------------------------------------------------
 # START OF WORKAROUND FOR BASE ROOT RESTRICTION OF Music2Emotion
 # Music2Emotion only works it it thinks it sits directly at the base root dir.
@@ -115,17 +117,19 @@ def analyze(file_path: str | PathLike[str]):
     arousal = output_dic["arousal"]
     predicted_moods = output_dic["predicted_moods"]
 
-    valence = np.interp(valence, [1, 9], [1, 10])
-    arousal = np.interp(arousal, [1, 9], [1, 10])
+    valence = np.interp(valence, [1, 9], [0, 10])
+    arousal = np.interp(arousal, [1, 9], [0, 10])
+
+    moods = collapse_mood_tags(predicted_moods)
 
     print(("-" * 50) + " " + file_path + " " + ("-" * 50))
-    print(f"🎭  Tags: {', '.join(predicted_moods) if predicted_moods else 'None'}")
-    print(f"💖  Valence: {valence:.2f} (Scale: 1-10)")
-    print(f"⚡  Arousal: {arousal:.2f} (Scale: 1-10)")
+    print(f"🎭  Tags: {', '.join(moods)}")
+    print(f"💖  Valence: {valence:.2f} (Scale: 0-10)")
+    print(f"⚡  Arousal: {arousal:.2f} (Scale: 0-10)")
 
-    update_mp3_category(file_path, "Valence", round(valence))
-    update_mp3_category(file_path, "Arousal", round(arousal))
-    update_mp3_tags(file_path, predicted_moods)
+    update_mp3_category(file_path, "Valence", round(valence,1))
+    update_mp3_category(file_path, "Arousal", round(arousal,1))
+    update_mp3_tags(file_path, moods)
 
 def main():
     if len(sys.argv) > 0:
