@@ -86,6 +86,12 @@ def update_mp3_tags(path: str | PathLike[str], tags: list[str]):
         )
     audio.save()
 
+def update_mp3_summary(path : str| PathLike[str], new_summary :str):
+    audio = MP3(path, ID3=ID3)
+    if audio.tags is None:
+        audio.add_tags()
+    audio.tags.add(COMM(encoding=3, text=[new_summary]))
+    audio.save()
 
 def update_mp3_category(path: str | Path, category: str, new_value: int | None):
     audio = MP3(path, ID3=ID3)
@@ -110,7 +116,11 @@ def update_mp3_category(path: str | Path, category: str, new_value: int | None):
     audio.save()
 
 
-def analyze(file_path: str | PathLike[str]):
+def analyze(file_path: str | PathLike[str], force: bool = False):
+    if not force and is_analyzed(file_path):
+        print("Skipping already analyzed file %s" % file_path)
+        return
+
     output_dic = modul.predict(file_path)
 
     valence = output_dic["valence"]
@@ -130,21 +140,46 @@ def analyze(file_path: str | PathLike[str]):
     update_mp3_category(file_path, "Valence", round(valence,1))
     update_mp3_category(file_path, "Arousal", round(arousal,1))
     update_mp3_tags(file_path, moods)
+    update_mp3_summary(file_path, "Analyzed with Voxalyzer 1.0")
+
+def is_analyzed(file_path: str | PathLike[str]) -> bool:
+    audio = MP3(file_path, ID3=ID3)
+    if audio.tags is None:
+        return False
+
+    return audio.tags.get("TXXX:ai_categories") is not None
+
+    return (set(get_categories()) == set(entry.categories.keys()) and entry.summary is not None
+            and entry.summary != "This is a mock summary." and not "Voxalyzer" in entry.summary)
+
+def is_voxalyzed(file_path: str | PathLike[str]) -> bool:
+    audio = MP3(file_path, ID3=ID3)
+    if audio.tags is None:
+        return False
+
+    return "Voxalyzer" in audio.tags.get("COMM::XXX") and is_analyzed(file_path)
+
 
 def main():
-    if len(sys.argv) > 0:
-        root_dir = sys.argv[1]
-    else:
-        root_dir = __file__.parent
+    if len(sys.argv) == 0:
+        sys.argv = [__file__.parent]
 
     if torch.cuda.is_available():
         print("Using GPU Mode quite fast")
     else:
         print("Using CPU MODE a bit slower")
 
-    files = list_mp3s(root_dir)
-    for file in files:
-        analyze(file)
+    force = False
+    if "--force" in sys.argv:
+        sys.argv.remove("--force")
+        force = True
+
+    for directory in sys.argv:
+        files = list_mp3s(directory)
+        for file in files:
+            analyze(file, force)
+
+
 
 if __name__ == "__main__":
     main()
