@@ -9,27 +9,17 @@ ENV PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-dev \
-    ffmpeg \
-    libyaml-dev \
-    libfftw3-dev \
-    libavcodec-dev \
-    libavformat-dev \
-    libavutil-dev \
-    libsamplerate0-dev \
-    libtag1-dev \
-    libchromaprint-dev \
-    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # 6. Install Essentia
 # Use essentia-tensorflow if you want access to the pre-trained models
-RUN pip3 install essentia-tensorflow
+RUN pip3 install --no-cache-dir essentia-tensorflow
 
 RUN ln -s /usr/local/lib/python3.8/dist-packages/essentia/_essentia.cpython-310-x86_64-linux-gnu.so /usr/local/lib/python3.8/dist-packages/essentia/_essentia.so
 
 RUN ldconfig
 
-RUN pip3 install fastapi uvicorn python-multipart mutagen numpy
+RUN pip3 install --no-cache-dir fastapi uvicorn python-multipart mutagen numpy
 
 # Copy project files
 COPY models/ ./models/
