@@ -1,8 +1,20 @@
 name: Create and publish a Docker image
 
 on:
-  release:
-    types: [published] # Triggers when you click "Publish Release" in GitHub
+  push:
+    # Trigger on version tags for stable releases
+    tags:
+      - 'v*.*.*'  # Trigger for version tags like v1.0.0
+    # Trigger on pushes to devel branch for development releases
+    branches:
+      - devel
+  # Allow manual runs from the Actions UI
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version tag (e.g., v0.7.12-beta)'
+        required: true
+        type: string
 
 env:
   REGISTRY: ghcr.io
@@ -24,7 +36,8 @@ jobs:
           dotnet: true
           haskell: true
           large-packages: true
-          swap-storage: true
+          swap-storage: false
+          docker-images: true
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -52,3 +65,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -8,12 +8,12 @@ To build under windows:
 python -m nuitka --jobs=16 voxalyzer.py --product-version=0.1.0.0 --file-version=0.1.0.0
 ```
 
-To use docker image to analyze local directory
+To use latest docker image to analyze local directory
 ```bash
-docker run --gpus all -v C:/Users/gandu/Music/Test:/music voxalyzer /music --force
+docker run --gpus all -v C:/Users/gandu/Music/Test:/music ghcr.io/gandulf/voxalyzer:latest /music --force
 ```
 
 To run webserver accepting calls under port 8000 /analyze
 ```bash
-docker run --gpus all -p 8000:8000 voxalyzer
+docker run --gpus all -p 8000:8000 ghcr.io/gandulf/voxalyzer:latest
 ```
