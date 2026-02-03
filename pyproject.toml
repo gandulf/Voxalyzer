@@ -2,20 +2,30 @@
 name = "voxalyzer"
 version = "0.1.0"
 description = "MP3 analysis tool using Essentia and FastAPI"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 dependencies = [
-    "essentia",
-    "numpy",
-    "mutagen",
-    "fastapi",
-    "uvicorn",
-    "python-multipart",
+    "essentia==2.1b6.dev1389",
+    "six>=1.17.0",
+    "numpy>=2.4.1",
+    "mutagen>=1.47.0",
+    "fastapi>=0.128.0",
+    "uvicorn>=0.40.0",
+    "python-multipart>=0.0.22",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "flake8>=7.3.0",
+    "Nuitka>=2.8.10"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["models*", "wheels*"]
 
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
-voxalyzer = "server:main"
-voxalyze = "main:main"
+voxalyzer = "voxalyzer:main"

@@ -4,7 +4,7 @@ import tempfile
 import threading
 from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
-from main import analyze
+from voxalyzer import analyze, MODEL_VERSION
 
 app = FastAPI()
 
@@ -21,6 +21,10 @@ def _analyze_safe(file_path: str):
     finally:
         if os.path.exists(file_path):
             os.remove(file_path)
+
+@app.get("/voxalyzer")
+def voxalyzer():
+    return MODEL_VERSION
 
 @app.post("/analyze")
 async def analyze_endpoint(request: Request):
@@ -64,9 +68,9 @@ async def analyze_endpoint(request: Request):
             os.remove(tmp_path)
         return {"error": str(e)}
 
-def serve():
+def serve(port:int = 8000):
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
     serve()

@@ -33,10 +33,10 @@ RUN pip3 install fastapi uvicorn python-multipart mutagen numpy
 
 # Copy project files
 COPY models/ ./models/
-COPY main.py mp3.py server.py ./
+COPY voxalyzer.py mp3.py server.py ./
 
 # Expose the port the app runs on
 EXPOSE 8000
 
 # Run the server
-ENTRYPOINT ["python3", "main.py"]
+ENTRYPOINT ["python3", "voxalyzer.py"]
