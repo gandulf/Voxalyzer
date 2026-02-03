@@ -1,4 +1,4 @@
-name: Create and publish a Docker image
+name: Publish Docker image
 
 on:
   push:
@@ -93,6 +93,6 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ steps.docker_tags.outputs.docker_tags }
+          tags: ${{ steps.docker_tags.outputs.docker_tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
