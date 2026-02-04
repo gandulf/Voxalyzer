@@ -1,0 +1,124 @@
+name: Release app
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version tag (e.g., v0.7.12-beta)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Update version with current tag reference
+      id: vars
+      shell: pwsh
+      run: |
+        $ref = "${{ github.ref }}"
+        $event_name = "${{ github.event_name }}"
+        $input_version = "${{ inputs.version_tag }}"
+        
+        if ($ref -like "refs/tags/v*") {
+            $version = $ref -replace "refs/tags/v", ""
+        } elseif ($ref -eq "refs/heads/devel") {
+            $version = "devel"
+        } elseif ($event_name -eq "workflow_dispatch") {
+            $version = $input_version -replace "^v", ""
+        } else {
+            Write-Error "Unsupported trigger. Exiting."
+            exit 1
+        }
+        
+        Write-Host "Building version: $version"
+                         
+        (Get-Content version.rc) -replace "'ProductVersion', '(.*?)'", ("'ProductVersion', '" + $version + "'") | Out-File -encoding UTF8noBom version.rc
+        (Get-Content pyproject.toml) -replace 'version = "(.*?)"', ('version = "' + $version + '"') | Out-File -encoding UTF8noBom pyproject.toml
+        
+        # Export the tags for subsequent steps (comma-separated)        
+        echo "app_version=$version" >> $env:GITHUB_OUTPUT
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install .[dev] flake8        
+
+    - name: Lint with flake8
+      run: |
+        flake8
+
+    - name: Create Nuitka Executable
+      uses: Nuitka/Nuitka-Action@main
+      with:
+        nuitka-version: main
+        script-name: voxalyzer.py
+        mode: onefile
+        low-memory: true
+        output-dir: dist
+        file-version: ${{ steps.vars.outputs.app_version }}
+        product-version: ${{ steps.vars.outputs.app_version }}
+        jobs: 1
+
+    - name: Create Pyinstaller Executable
+      if: false
+      run: |
+        pyinstaller voxalyzer.spec
+
+    - name: Prepare Certificate for Signing
+      shell: pwsh
+      run: |
+        # Decode the Base64 secret into a physical .pfx file
+        $certBytes = [System.Convert]::FromBase64String("${{ secrets.PFX_BASE64 }}")
+        [System.IO.File]::WriteAllBytes("$env:TEMP\cert.pfx", $certBytes)
+
+    - name: Prepare Signtool
+      uses: KamaranL/add-signtool-action@v1
+      id: signtool
+
+    - name: Sign Executable
+      shell: pwsh
+      run: |
+        signtool sign /f "$env:TEMP\cert.pfx" /p "${{ secrets.PFX_PASSWORD }}" `
+           /fd sha256 /td sha256 `
+           /tr http://timestamp.digicert.com `
+           "voxalyzer.exe"
+
+    - name: Cleanup Certificate
+      if: always()
+      shell: pwsh
+      run: |
+        # Securely remove the certificate from the runner's temp folder
+        if (Test-Path "$env:TEMP\cert.pfx") { Remove-Item "$env:TEMP\cert.pfx" }        
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: voxalyzer.exe
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ steps.vars.outputs.app_version }}
+        draft: true
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: voxalyzer-${{ steps.vars.outputs.app_version }}
+        path: voxalyzer.exe

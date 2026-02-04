@@ -1,9 +1,9 @@
 # Compilation mode, standalone everywhere, except on macOS there app bundle
 # nuitka-project-if: {OS} in ("Windows", "Linux", "FreeBSD"):
-#    nuitka-project: --mode=standalone
+#    nuitka-project: --mode=onefile
 #    nuitka-project: --windows-console-mode=force
 # nuitka-project-else:
-#    nuitka-project: --mode=standalone
+#    nuitka-project: --mode=onefile
 #    nuitka-project: --macos-create-app-bundle
 #
 # nuitka-project: --include-data-dir={MAIN_DIRECTORY}/models=models
