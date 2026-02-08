@@ -97,7 +97,7 @@ jobs:
         signtool sign /f "$env:TEMP\cert.pfx" /p "${{ secrets.PFX_PASSWORD }}" `
            /fd sha256 /td sha256 `
            /tr http://timestamp.digicert.com `
-           "voxalyzer.exe"
+           "dist\voxalyzer.exe"
 
     - name: Cleanup Certificate
       if: always()
@@ -109,7 +109,7 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        files: voxalyzer.exe
+        files: dist\voxalyzer.exe
         tag_name: ${{ github.ref_name }}
         name: Release ${{ steps.vars.outputs.app_version }}
         draft: true
@@ -121,4 +121,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: voxalyzer-${{ steps.vars.outputs.app_version }}
-        path: voxalyzer.exe
+        path: dist\voxalyzer.exe
