@@ -9,6 +9,9 @@ from mutagen.easyid3 import EasyID3
 from mutagen.id3 import ID3NoHeaderError, COMM, ID3
 from mutagen.mp3 import MP3
 
+from utils import AnalyzeResult
+
+
 def get_comment(id3, key):
     return [c.text[0] for c in id3.getall('COMM')]
 
@@ -42,14 +45,27 @@ def easy_id3(path: str) -> EasyID3:
 
     return audio
 
-def clean_mp3(path: str):
-    try:
-        audio = ID3(path)
-        audio.delall('TXXX')
-        audio.save()
-    except:
-        pass
+def clean_mp3(paths: list[str]):
+    if isinstance(paths,str):
+        clean_mp3([paths])
+    else:
+        for path in paths:
+            try:
+                audio = ID3(path)
+                audio.delall('TXXX')
+                audio.save()
+            except:
+                pass
 
+def update_mp3_results(paths: str, analysis: AnalyzeResult):
+    audio = easy_id3(paths)
+
+    audio["ai_categories"] = [json.dumps(analysis['categories'])]
+    audio['ai_tags'] = analysis['tags']
+    audio['genre'] = analysis['genres']
+    audio['bpm'] = [analysis['bpm']]
+
+    audio.save()
 
 def update_mp3(path: str, genres: list, bpm: int, categories: dict, tags:list):
     audio = easy_id3(path)

@@ -4,12 +4,16 @@ import tempfile
 import threading
 from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
-from voxalyzer import analyze, MODEL_VERSION
+
+from analyzer_onnx import begin_session, end_session, SessionRecycler, analyze_file
+from voxalyzer import MODEL_VERSION
 
 app = FastAPI()
 
 # Lock to ensure thread safety for global models in main.py
 analysis_lock = threading.Lock()
+
+session: SessionRecycler = None
 
 def _analyze_safe(file_path: str):
     """
@@ -17,7 +21,7 @@ def _analyze_safe(file_path: str):
     """
     try:
         with analysis_lock:
-            return analyze(file_path, force=True, update=False)
+            return analyze_file(file_path, session_handler=session, force=True)
     finally:
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -69,8 +73,12 @@ async def analyze_endpoint(request: Request):
         return {"error": str(e)}
 
 def serve(port:int = 8000):
+    global session
     import uvicorn
+
+    session = begin_session()
     uvicorn.run(app, host="0.0.0.0", port=port)
+    end_session(session)
 
 if __name__ == "__main__":
     serve()
