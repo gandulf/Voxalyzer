@@ -5,7 +5,7 @@ import threading
 from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 
-from analyzer_onnx import begin_session, end_session, SessionRecycler, analyze_file
+from analyzer_onnx import begin_session, end_session, SessionHandler, analyze_file
 from voxalyzer import MODEL_VERSION
 
 app = FastAPI()
@@ -13,7 +13,7 @@ app = FastAPI()
 # Lock to ensure thread safety for global models in main.py
 analysis_lock = threading.Lock()
 
-session: SessionRecycler = None
+session: SessionHandler = None
 
 def _analyze_safe(file_path: str):
     """

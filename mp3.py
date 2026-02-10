@@ -1,8 +1,7 @@
 import os
 
-import glob
+
 import json
-from os import PathLike
 from pathlib import Path
 
 from mutagen.easyid3 import EasyID3
@@ -10,7 +9,6 @@ from mutagen.id3 import ID3NoHeaderError, COMM, ID3
 from mutagen.mp3 import MP3
 
 from utils import AnalyzeResult
-
 
 def get_comment(id3, key):
     return [c.text[0] for c in id3.getall('COMM')]

@@ -1,28 +1,19 @@
-# tasks/analysis.py
-
 import os
 import shutil
-from collections import defaultdict
 import numpy as np
-import json
 import time
-import random
 import logging
-import uuid
 import traceback
 import gc
 from pydub import AudioSegment
 from tempfile import NamedTemporaryFile
 
 import librosa
-import onnx
 import onnxruntime as ort
 
-# Import memory management utilities
 from memory_utils import (
     cleanup_cuda_memory,
     cleanup_onnx_session,
-    handle_onnx_memory_error,
     comprehensive_memory_cleanup
 )
 from utils import get_best, to_ten, rescale
@@ -117,32 +108,38 @@ DEFINED_TENSORS = {
     'Danceable': {
         'model': DANCEABILITY_MODEL_PATH,
         'input': 'model/Placeholder:0',
-        'output': 'model/Softmax:0'
+        'output': 'model/Softmax:0',
+        'outputIndex': 0
     },
     'Aggressive': {
         'model': AGGRESSIVE_MODEL_PATH,
         'input': 'model/Placeholder:0',
-        'output': 'model/Softmax:0'
+        'output': 'model/Softmax:0',
+        'outputIndex': 0
     },
     'Happy': {
         'model': HAPPY_MODEL_PATH,
         'input': 'model/Placeholder:0',
-        'output': 'model/Softmax:0'
+        'output': 'model/Softmax:0',
+        'outputIndex': 0
     },
     'Party': {
         'model': PARTY_MODEL_PATH,
         'input': 'model/Placeholder:0',
-        'output': 'model/Softmax:0'
+        'output': 'model/Softmax:0',
+        'outputIndex': 1
     },
     'Relaxed': {
         'model': RELAXED_MODEL_PATH,
         'input': 'model/Placeholder:0',
-        'output': 'model/Softmax:0'
+        'output': 'model/Softmax:0',
+        'outputIndex': 1
     },
     'Sad': {
         'model': SAD_MODEL_PATH,
         'input': 'model/Placeholder:0',
-        'output': 'model/Softmax:0'
+        'output': 'model/Softmax:0',
+        'outputIndex': 1
     },
     'Mirex': {
         'model': MIREX_MODEL_PATH,
@@ -157,12 +154,14 @@ DEFINED_TENSORS = {
     'Tonal': {
         'model': TONAL_MODEL_PATH,
         'input': 'model/Placeholder:0',
-        'output': 'model/Softmax:0'
+        'output': 'model/Softmax:0',
+        'outputIndex': 1
     },
     'Darkness': {
         'model': DARK_MODEL_PATH,
         'input': 'model/Placeholder:0',
-        'output': 'model/Softmax:0'
+        'output': 'model/Softmax:0',
+        'outputIndex': 1
     },
     'Genre': {
         'model': GENRE_MODEL_PATH,
@@ -174,24 +173,9 @@ DEFINED_TENSORS = {
         'input': 'model/Placeholder:0',
         'output': 'activations'
     }
-
-
 }
 
-# --- Class Index Mapping ---
-# Based on confirmed metadata from the user.
-CLASS_INDEX_MAP = {
-    "Aggressive": 0,
-    "Happy": 0,
-    "Relaxed": 1,
-    "Sad": 1,
-    "Danceable": 0,
-    "Party": 1,
-    "Tonal": 1,
-    "Darkness": 1
-}
-
-class SessionRecycler:
+class SessionHandler:
     """
     Recreate ONNX Runtime sessions every N tracks to prevent cumulative memory leaks.
 
@@ -473,6 +457,7 @@ def _get_provider_options():
     else:
         provider_options = [('CPUExecutionProvider', {})]
         logger.info("CUDA provider not available - using CPU only")
+    return provider_options
 
 
 # Prepare Spectrograms ---
@@ -572,9 +557,6 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
     embedding_msd_sess = None
     moods_sess = None
 
-    # Configure provider options for GPU memory management (used for main and secondary models)
-    provider_options = _get_provider_options()
-
     try:
         # Use pre-loaded session
         embedding_msd_sess = onnx_sessions['Embedding_msd']
@@ -662,7 +644,7 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
                         class_probs = probabilities_per_patch[:, 1]
                         categories['Arousal'] = round(rescale(float(np.mean(class_probs))),1) # map from 1-9 to 0-10
                     else:
-                        positive_class_index = CLASS_INDEX_MAP.get(key, 0)
+                        positive_class_index = tensor.get("outputIndex", 0)
                         class_probs = probabilities_per_patch[:, positive_class_index]
                         categories[key] = to_ten(np.mean(class_probs))
                 elif isinstance(probabilities_per_patch, np.ndarray) and probabilities_per_patch.ndim == 2 and probabilities_per_patch.shape[1] == 1:
@@ -707,7 +689,7 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
             else:
                 if isinstance(probabilities_per_patch, np.ndarray) and probabilities_per_patch.ndim == 2 and probabilities_per_patch.shape[1] == 2:
                     # Using the CLASS_INDEX_MAP to select the correct probability
-                    positive_class_index = CLASS_INDEX_MAP.get(key, 0)
+                    positive_class_index = tensor.get("outputIndex", 0)
                     class_probs = probabilities_per_patch[:, positive_class_index]
                     categories[key] = to_ten(np.mean(class_probs))
                 elif isinstance(probabilities_per_patch, np.ndarray) and probabilities_per_patch.ndim == 2 and probabilities_per_patch.shape[1] == 1:
@@ -788,6 +770,7 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
 
 
 def load_onnx_sessions():
+    # Configure provider options for GPU memory management (used for main and secondary models)
     provider_options = _get_provider_options()
     onnx_sessions = {}
     try:
@@ -813,12 +796,12 @@ def load_onnx_sessions():
 def begin_session(model_reload=False):
     recycle_interval = 1 if model_reload else 20
     logger.info(f"ONNX session recycling: every {recycle_interval} song(s) (PER_SONG_MODEL_RELOAD={model_reload})")
-    return SessionRecycler(recycle_interval=recycle_interval)
+    return SessionHandler(recycle_interval=recycle_interval)
 
-def end_session(session:SessionRecycler):
+def end_session(session:SessionHandler):
     session.close_session()
 
-def analyze_file(path: str, session_handler:SessionRecycler = None, force =False):
+def analyze_file(path: str, session_handler:SessionHandler = None, force =False):
     needs_analysus = True  # TODO
     # Analysis (only if needed)
     if needs_analysus or force:
@@ -843,7 +826,7 @@ def analyze_file(path: str, session_handler:SessionRecycler = None, force =False
         logger.info(f"SKIPPED MusiCNN for '{path}' (already analyzed)")
         return None
 
-def analyze_files(file_paths: list, directory_name, session_handler:SessionRecycler = None, handle_result_callback=None, force=False):
+def analyze_files(file_paths: list, directory_name, session_handler:SessionHandler = None, handle_result_callback=None, force=False):
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Directory analysis task started.")
 
     tracks_analyzed_count, tracks_skipped_count, current_progress_val = 0, 0, 0

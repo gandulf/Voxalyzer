@@ -1,16 +1,13 @@
 """
 Memory management and data sanitization utilities for AudioMuse AI.
 
-This module provides utilities to address two critical issues:
-1. PostgreSQL NUL byte errors from corrupted metadata
-2. ONNX Runtime GPU memory allocation failures from fragmentation
+This module provides utilities to address one critical issues:
+* ONNX Runtime GPU memory allocation failures from fragmentation
 
 Key functions:
-- sanitize_string_for_db: Remove NULL bytes and control characters before DB writes
 - cleanup_cuda_memory: Force CUDA cache clearing and garbage collection
 - cleanup_onnx_session: Explicit session disposal with immediate GC
 - handle_onnx_memory_error: Detect allocation errors, trigger cleanup, enable retry
-- SessionRecycler: Recreate sessions every N tracks to prevent cumulative leaks
 """
 
 import gc
@@ -19,47 +16,6 @@ import re
 from typing import Optional, Dict, Any, Callable
 
 logger = logging.getLogger(__name__)
-
-
-def sanitize_string_for_db(value: Optional[str]) -> Optional[str]:
-    """
-    Remove NULL bytes (0x00) and control characters from strings before database writes.
-
-    PostgreSQL TEXT/VARCHAR columns reject strings containing NULL bytes (0x00), which
-    can appear in corrupted metadata from music files. This function sanitizes strings
-    to prevent database insertion errors.
-
-    Args:
-        value: String to sanitize (can be None)
-
-    Returns:
-        Sanitized string with NULL bytes and control characters removed, or None if input is None
-
-    Examples:
-        >>> sanitize_string_for_db("Tyler, The Creator\x00YoungBoy")
-        "Tyler, The CreatorYoungBoy"
-        >>> sanitize_string_for_db(None)
-        None
-        >>> sanitize_string_for_db("")
-        ""
-    """
-    if value is None:
-        return None
-
-    if not isinstance(value, str):
-        # Convert to string if not already
-        value = str(value)
-
-    # Remove NULL bytes (0x00)
-    value = value.replace('\x00', '')
-
-    # Remove other control characters (0x01-0x1F except newline, tab, carriage return)
-    # Keep: \t (0x09), \n (0x0A), \r (0x0D)
-    # Remove: 0x01-0x08, 0x0B-0x0C, 0x0E-0x1F
-    value = re.sub(r'[\x01-\x08\x0B-\x0C\x0E-\x1F]', '', value)
-
-    return value
-
 
 def cleanup_cuda_memory(force: bool = False) -> bool:
     """

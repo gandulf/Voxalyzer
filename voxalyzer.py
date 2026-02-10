@@ -11,7 +11,7 @@
 # nuitka-project: --output-dir=dist
 import logging
 
-from analyzer_onnx import analyze_files, SessionRecycler, analyze_file
+from analyzer_onnx import analyze_files
 from mp3 import clean_mp3, list_mp3s, update_mp3_results
 from utils import AnalyzeResult
 
@@ -20,12 +20,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 import os
 import sys
-import json
+
 import traceback
-from os import PathLike
 
 MODEL_VERSION = "2.0"
-
 
 def handle_analyze_result(file_path: str, analysis: AnalyzeResult):
     logger.info(f"Analyzed {file_path}:")
@@ -36,35 +34,32 @@ def handle_analyze_result(file_path: str, analysis: AnalyzeResult):
         logger.info(f"  {key}: {item}")
 
 def main():
-    if __file__ in sys.argv:
-        sys.argv.remove(__file__)
-    if "voxalyzer.py" in sys.argv:
-        sys.argv.remove("voxalyzer.py")
+    args = [arg for arg in sys.argv if not arg.endswith(".exe") and not arg.endswith(".py")]
 
     port = 8000
     try:
-        index = sys.argv.index("--port")
-        sys.argv.pop(index)
-        port = int(sys.argv.pop(index))
+        index = args.index("--port")
+        args.pop(index)
+        port = int(args.pop(index))
     except ValueError:
         pass
 
-    if len(sys.argv) == 0:
+    if len(args) == 0:
         import server
         server.serve(port)
     else:
         force = False
         clean = False
-        if "--force" in sys.argv:
-            sys.argv.remove("--force")
+        if "--force" in args:
+            args.remove("--force")
             force = True
 
-        if "--clean" in sys.argv:
-            sys.argv.remove("--clean")
+        if "--clean" in args:
+            args.remove("--clean")
             clean = True
 
         failed_files = []
-        for arg in sys.argv:
+        for arg in args:
             if os.path.isfile(arg) and arg.lower().endswith(".mp3"):
                 if clean:
                     clean_mp3(arg)
