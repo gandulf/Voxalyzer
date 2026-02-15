@@ -439,6 +439,8 @@ def robust_load_audio_with_fallback(file_path, target_sr=16000):
 
 def _get_provider_options():
     available_providers = ort.get_available_providers()
+    provider_options = []
+
     if 'CUDAExecutionProvider' in available_providers:
         # Get GPU device ID from environment or default to 0
         gpu_device_id = 0
@@ -452,11 +454,18 @@ def _get_provider_options():
             'cudnn_conv_algo_search': 'EXHAUSTIVE',
             'do_copy_in_default_stream': True,
         }
-        provider_options = [('CUDAExecutionProvider', cuda_options), ('CPUExecutionProvider', {})]
+        provider_options.append(('CUDAExecutionProvider', cuda_options))
         logger.debug(f"CUDA provider available - attempting to use GPU for analysis (device_id={gpu_device_id})")
-    else:
-        provider_options = [('CPUExecutionProvider', {})]
-        logger.info("CUDA provider not available - using CPU only")
+
+    if 'DmlExecutionProvider' in available_providers:
+        provider_options.append(('DmlExecutionProvider', {}))
+        logger.debug("DirectML provider available")
+
+    provider_options.append(('CPUExecutionProvider', {}))
+
+    if not any(p[0] in ['CUDAExecutionProvider', 'DmlExecutionProvider'] for p in provider_options):
+        logger.info("GPU providers (CUDA/DirectML) not available - using CPU only")
+
     return provider_options
 
 
@@ -773,11 +782,17 @@ def load_onnx_sessions():
     # Configure provider options for GPU memory management (used for main and secondary models)
     provider_options = _get_provider_options()
     onnx_sessions = {}
+
+    sess_options = ort.SessionOptions()
+    # Set to level 1 (Basic) instead of level 99 (All)
+    sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
+    #sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     try:
         for model_name, model_info in DEFINED_TENSORS.items():
             try:
                 onnx_sessions[model_name] = ort.InferenceSession(
                     model_info['model'],
+                    sess_options= sess_options,
                     providers=[p[0] for p in provider_options],
                     provider_options=[p[1] for p in provider_options]
                 )
@@ -827,6 +842,9 @@ def analyze_file(path: str, session_handler:SessionHandler = None, force =False)
         return None
 
 def analyze_files(file_paths: list, directory_name, session_handler:SessionHandler = None, handle_result_callback=None, force=False):
+    # 2. Start the stopwatch
+    start_time = time.perf_counter()
+
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Directory analysis task started.")
 
     tracks_analyzed_count, tracks_skipped_count, current_progress_val = 0, 0, 0
@@ -867,6 +885,21 @@ def analyze_files(file_paths: list, directory_name, session_handler:SessionHandl
         traceback.print_exc()
         raise
     finally:
+
+        # --- THE CHECK ---
+        active_providers = session_handler.onnx_sessions['Embedding_discogs'].get_providers()
+        logger.info(f"Active Providers: {active_providers}")
+        if 'CUDAExecutionProvider' in active_providers:
+            logger.info("Victory! You are running on the GPU via CUDA.")
+        elif 'DmlExecutionProvider' in active_providers:
+            logger.info("Victory! You are running on the GPU via DirectML.")
+        else:
+            logger.info("Fallback occurred. You are running on the CPU.")
         # ✅ Always cleanup, even on error or early return
         if cleanup_session:
             end_session(session_handler)
+
+        # 4. Stop and calculate
+        end_time = time.perf_counter()
+        duration_ms = (end_time - start_time) * 1000
+        logger.info(f"Inference took: {duration_ms:.2f} ms")

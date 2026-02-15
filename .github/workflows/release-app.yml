@@ -57,13 +57,14 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install .[dev] flake8 --find-links ./wheels
+        pip install .[dev,windows] flake8
 
     - name: Lint with flake8
       run: |
         flake8
 
     - name: Create Nuitka Executable
+      if: false
       uses: Nuitka/Nuitka-Action@main
       with:
         nuitka-version: main
@@ -75,8 +76,8 @@ jobs:
         product-version: ${{ steps.vars.outputs.app_version }}
         jobs: 1
 
-    - name: Create Pyinstaller Executable
-      if: false
+    - name: Create PyInstaller Executable
+      if: true
       run: |
         pyinstaller voxalyzer.spec
 

@@ -9,7 +9,6 @@ dependencies = [
     "fastapi>=0.128.0",
     "uvicorn>=0.40.0",
     "python-multipart>=0.0.22",
-    "onnxruntime-gpu>=1.24.1",
     "numba>=0.63.1",
     "librosa>=0.11.0",
     "pydub>=0.25.1"
@@ -21,6 +20,14 @@ dev = [
     "Nuitka==2.8.10",
     "pyinstaller>=6.18.0",
     "zstandard>=0.25.0"
+]
+
+windows = [
+    "onnxruntime-directml>=1.24.1"
+]
+
+nvidia = [
+    "onnxruntime-gpu>=1.24.1"
 ]
 
 [tool.setuptools.packages.find]
