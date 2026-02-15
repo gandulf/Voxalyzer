@@ -110,7 +110,7 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        files: dist\voxalyzer.exe
+        files: dist/voxalyzer.exe
         tag_name: ${{ github.ref_name }}
         name: Release ${{ steps.vars.outputs.app_version }}
         draft: true
@@ -122,4 +122,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: voxalyzer-${{ steps.vars.outputs.app_version }}
-        path: dist\voxalyzer.exe
+        path: dist/voxalyzer.exe
