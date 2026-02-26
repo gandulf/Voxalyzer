@@ -16,7 +16,7 @@ from memory_utils import (
     cleanup_onnx_session,
     comprehensive_memory_cleanup
 )
-from utils import get_best, to_ten, rescale
+from utils import get_best, to_ten, rescale, AnalyzeResult
 
 logger = logging.getLogger(__name__)
 
@@ -816,10 +816,10 @@ def begin_session(model_reload=False):
 def end_session(session:SessionHandler):
     session.close_session()
 
-def analyze_file(path: str, session_handler:SessionHandler = None, force =False):
-    needs_analysus = True  # TODO
+def analyze_file(path: str, session_handler:SessionHandler = None, force = False) -> AnalyzeResult:
+    needs_analysis = True  # TODO
     # Analysis (only if needed)
-    if needs_analysus or force:
+    if needs_analysis or force:
         # Lazy-load models on first song that needs analysis
         onnx_sessions = session_handler.get_session()
 

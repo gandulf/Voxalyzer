@@ -71,7 +71,7 @@ def main():
                     if clean:
                         clean_mp3(files)
                     else:
-                        analyze_files(files, directory_name=arg, force=force)
+                        analyze_files(files, directory_name=arg, force=force, handle_result_callback=handle_analyze_result)
                 except KeyboardInterrupt:
                     sys.exit(0)
                 except Exception:

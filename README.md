@@ -1,7 +1,7 @@
 
 To install dependencies under windows
 ```bash
-pip install .[dev] --find-links ./wheels
+pip install .[dev,windows]
 ```
 To build under windows:
 ```bash
@@ -11,8 +11,6 @@ pyinstaller voxalyzer.spec
 To use latest docker image to analyze local directory
 ```bash
 docker run --gpus all -v C:/Users/gandu/Music/Test:/music ghcr.io/gandulf/voxalyzer:latest /music --force
-
-
 ```
 
 To run webserver accepting calls under port 8000 /analyze
