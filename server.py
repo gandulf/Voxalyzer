@@ -15,7 +15,7 @@ analysis_lock = threading.Lock()
 
 session: SessionHandler = None
 
-def _analyze_safe(file_path: str):
+def _analyze_safe(file_path: str, cleanup_file:bool = False):
     """
     Helper function to run the analysis safely with a lock and cleanup.
     """
@@ -23,7 +23,7 @@ def _analyze_safe(file_path: str):
         with analysis_lock:
             return analyze_file(file_path, session_handler=session, force=True)
     finally:
-        if os.path.exists(file_path):
+        if cleanup_file and os.path.exists(file_path):
             os.remove(file_path)
 
 @app.get("/voxalyzer")
@@ -38,9 +38,12 @@ async def analyze_endpoint(request: Request):
     """
     content_type = request.headers.get("content-type", "")
     tmp_path = None
-
+    cleanup_file = False
     try:
-        if content_type.startswith("multipart/form-data"):
+        if content_type.startswith("application/json"):
+            request_data = await request.json()
+            tmp_path = request_data["file"]
+        elif content_type.startswith("multipart/form-data"):
             # Handle multipart upload
             form = await request.form()
             file_obj = form.get("file")
@@ -52,6 +55,7 @@ async def analyze_endpoint(request: Request):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
                 shutil.copyfileobj(file_obj.file, tmp)
                 tmp_path = tmp.name
+                cleanup_file = True
         else:
             # Handle raw binary upload
             body = await request.body()
@@ -61,14 +65,15 @@ async def analyze_endpoint(request: Request):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
                 tmp.write(body)
                 tmp_path = tmp.name
+                cleanup_file = True
 
         # Run the blocking analysis in a separate thread
-        return await run_in_threadpool(_analyze_safe, tmp_path)
+        return await run_in_threadpool(_analyze_safe, tmp_path, cleanup_file=cleanup_file)
 
     except Exception as e:
         # Cleanup if something failed before _analyze_safe was called
         # or if _analyze_safe failed but somehow didn't clean up (unlikely due to finally)
-        if tmp_path and os.path.exists(tmp_path):
+        if tmp_path and os.path.exists(tmp_path) and cleanup_file:
             os.remove(tmp_path)
         return {"error": str(e)}
 

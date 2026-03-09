@@ -27,11 +27,11 @@ MODEL_VERSION = "2.0"
 
 def handle_analyze_result(file_path: str, analysis: AnalyzeResult):
     logger.info(f"Analyzed {file_path}:")
-
+    clean_mp3(file_path)
     update_mp3_results(file_path, analysis)
 
     for key, item in analysis.items():
-        logger.info(f"  {key}: {item}")
+        logger.debug(f"  {key}: {item}")
 
 def main():
     args = [arg for arg in sys.argv if not arg.endswith(".exe") and not arg.endswith(".py")]
@@ -79,12 +79,12 @@ def main():
             elif arg.lower().endswith(".exe"):
                 pass
             else:
-                print("Unrecognized argument: %s" % arg)
+                logger.warning("Unrecognized argument: %s" % arg)
 
         if len(failed_files) > 0:
-            print("Could not analyze:")
+            logger.info("Could not analyze:")
             for file in failed_files:
-                print(file)
+                logger.info(file)
 
 
 if __name__ == "__main__":

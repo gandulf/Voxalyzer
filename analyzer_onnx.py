@@ -16,31 +16,31 @@ from memory_utils import (
     cleanup_onnx_session,
     comprehensive_memory_cleanup
 )
-from utils import get_best, to_ten, rescale, AnalyzeResult
+from utils import get_best, to_ten, rescale, AnalyzeResult, get_path
 
 logger = logging.getLogger(__name__)
 
 EMBEDDING_DIMENSION = 200
-MSD_EMBEDDING_MODEL_PATH = os.environ.get("MSD_MODEL", "models/msd-musicnn-1.onnx")
-DISCOGS_EMBEDDING_MODEL_PATH = os.environ.get("DISCOGS_MODEL_PATH", "models/discogs-effnet-bsdynamic-1.onnx")
+MSD_EMBEDDING_MODEL_PATH = os.environ.get("MSD_MODEL", get_path("models/msd-musicnn-1.onnx"))
+DISCOGS_EMBEDDING_MODEL_PATH = os.environ.get("DISCOGS_MODEL_PATH", get_path("models/discogs-effnet-bsdynamic-1.onnx"))
 
-MOODS_MODEL_PATH = os.environ.get("MOODS_MODEL_PATH", "models/msd-msd-musicnn-1.onnx")
+MOODS_MODEL_PATH = os.environ.get("MOODS_MODEL_PATH", get_path("models/msd-msd-musicnn-1.onnx"))
 
-DEAM_MODEL_PATH = os.environ.get("DEAM_MODEL_PATH", "models/deam-msd-musicnn-2.onnx")
-MIREX_MODEL_PATH = os.environ.get("MIREX_MODEL_PATH", "models/moods_mirex-msd-musicnn-1.onnx")
+DEAM_MODEL_PATH = os.environ.get("DEAM_MODEL_PATH", get_path("models/deam-msd-musicnn-2.onnx"))
+MIREX_MODEL_PATH = os.environ.get("MIREX_MODEL_PATH", get_path("models/moods_mirex-msd-musicnn-1.onnx"))
 
-DANCEABILITY_MODEL_PATH = os.environ.get("DANCEABILITY_MODEL_PATH", "models/danceability-discogs-effnet-1.onnx")
-AGGRESSIVE_MODEL_PATH = os.environ.get("AGGRESSIVE_MODEL_PATH", "models/mood_aggressive-discogs-effnet-1.onnx")
-HAPPY_MODEL_PATH = os.environ.get("HAPPY_MODEL_PATH", "models/mood_happy-discogs-effnet-1.onnx")
-PARTY_MODEL_PATH = os.environ.get("PARTY_MODEL_PATH", "models/mood_party-discogs-effnet-1.onnx")
-RELAXED_MODEL_PATH = os.environ.get("RELAXED_MODEL_PATH", "models/mood_relaxed-discogs-effnet-1.onnx")
-SAD_MODEL_PATH = os.environ.get("SAD_MODEL_PATH", "models/mood_sad-discogs-effnet-1.onnx")
+DANCEABILITY_MODEL_PATH = os.environ.get("DANCEABILITY_MODEL_PATH", get_path("models/danceability-discogs-effnet-1.onnx"))
+AGGRESSIVE_MODEL_PATH = os.environ.get("AGGRESSIVE_MODEL_PATH", get_path("models/mood_aggressive-discogs-effnet-1.onnx"))
+HAPPY_MODEL_PATH = os.environ.get("HAPPY_MODEL_PATH", get_path("models/mood_happy-discogs-effnet-1.onnx"))
+PARTY_MODEL_PATH = os.environ.get("PARTY_MODEL_PATH", get_path("models/mood_party-discogs-effnet-1.onnx"))
+RELAXED_MODEL_PATH = os.environ.get("RELAXED_MODEL_PATH", get_path("models/mood_relaxed-discogs-effnet-1.onnx"))
+SAD_MODEL_PATH = os.environ.get("SAD_MODEL_PATH", get_path("models/mood_sad-discogs-effnet-1.onnx"))
 
-ENGAGEMENT_MODEL_PATH = os.environ.get("ENGAGEMENT_MODEL_PATH", "models/engagement_regression-discogs-effnet-1.onnx")
-TONAL_MODEL_PATH = os.environ.get("TONAL_MODEL_PATH", "models/tonal_atonal-discogs-effnet-1.onnx")
-DARK_MODEL_PATH = os.environ.get("DARK_MODEL_PATH", "models/nsynth_bright_dark-discogs-effnet-1.onnx")
-GENRE_MODEL_PATH = os.environ.get("GENRE_MODEL_PATH", "models/mtg_jamendo_genre-discogs-effnet-1.onnx")
-MOODS_DISCOGS_MODEL_PATH = os.environ.get("MOODS_DISCOGS_MODEL_PATH", "models/mtg_jamendo_moodtheme-discogs-effnet-1.onnx")
+ENGAGEMENT_MODEL_PATH = os.environ.get("ENGAGEMENT_MODEL_PATH", get_path("models/engagement_regression-discogs-effnet-1.onnx"))
+TONAL_MODEL_PATH = os.environ.get("TONAL_MODEL_PATH", get_path("models/tonal_atonal-discogs-effnet-1.onnx"))
+DARK_MODEL_PATH = os.environ.get("DARK_MODEL_PATH", get_path("models/nsynth_bright_dark-discogs-effnet-1.onnx"))
+GENRE_MODEL_PATH = os.environ.get("GENRE_MODEL_PATH", get_path("models/mtg_jamendo_genre-discogs-effnet-1.onnx"))
+MOODS_DISCOGS_MODEL_PATH = os.environ.get("MOODS_DISCOGS_MODEL_PATH", get_path("models/mtg_jamendo_moodtheme-discogs-effnet-1.onnx"))
 
 AUDIO_LOAD_TIMEOUT = int(os.getenv("AUDIO_LOAD_TIMEOUT", "600"))  # Timeout in seconds for loading a single audio file.
 
@@ -571,23 +571,19 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
         embedding_msd_sess = onnx_sessions['Embedding_msd']
         tensor = DEFINED_TENSORS['Embedding_msd']
 
-        embedding_msd_feed_dict = {tensor['input']: final_patches_msd}
-        embeddings_msd_per_patch = run_inference(embedding_msd_sess, embedding_msd_feed_dict, tensor['output'],
+        embeddings_msd_per_patch = run_inference(embedding_msd_sess, {tensor['input']: final_patches_msd}, tensor['output'],
                                                  fallback_model=tensor['model'])
 
     except Exception as e:
         logger.error(f"MSD model inference failed for {os.path.basename(file_path)}: {e}", exc_info=True)
         return None, None
-    finally:
-        del embedding_msd_feed_dict
 
     try:
         # Use pre-loaded session
         moods_sess = onnx_sessions['Moods']
         tensor = DEFINED_TENSORS['Moods']
 
-        moods_feed_dict = {tensor['input']: embeddings_msd_per_patch}
-        mood_logits = run_inference(moods_sess, moods_feed_dict, tensor['output'], fallback_model=tensor['model'])
+        mood_logits = run_inference(moods_sess, {tensor['input']: embeddings_msd_per_patch}, tensor['output'], fallback_model=tensor['model'])
 
         averaged_logits = np.mean(mood_logits, axis=0)
         # Apply sigmoid to convert raw model outputs (logits) into probabilities
@@ -601,7 +597,7 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
         logger.error(f"MSD Moods inference failed for {os.path.basename(file_path)}: {e}", exc_info=True)
         return None, None
     finally:
-        del mood_logits, moods_feed_dict, averaged_logits#, final_mood_predictions
+        del mood_logits, averaged_logits#, final_mood_predictions
 
     #MIREX
     try:
@@ -609,8 +605,7 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
         mirex_sess = onnx_sessions['Mirex']
         tensor = DEFINED_TENSORS['Mirex']
 
-        mirex_feed_dict = {tensor['input']: embeddings_msd_per_patch}
-        mirex_logits = run_inference(mirex_sess, mirex_feed_dict, tensor['output'], fallback_model=tensor['model'])
+        mirex_logits = run_inference(mirex_sess, {tensor['input']: embeddings_msd_per_patch}, tensor['output'], fallback_model=tensor['model'])
 
         averaged_logits = np.mean(mirex_logits, axis=0)
 
@@ -626,7 +621,7 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
         logger.error(f"MSD Tags inference failed for {os.path.basename(file_path)}: {e}", exc_info=True)
         return None, None
     finally:
-        del mirex_logits, mirex_feed_dict, averaged_logits#, final_mirex_predictions
+        del mirex_logits, averaged_logits#, final_mirex_predictions
 
 
 
@@ -638,8 +633,7 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
             other_sess = onnx_sessions[key]
             tensor = DEFINED_TENSORS[key]
 
-            feed_dict = {tensor['input']: embeddings_msd_per_patch}
-            probabilities_per_patch = run_inference(other_sess, feed_dict, tensor['output'], fallback_model=tensor['model'])
+            probabilities_per_patch = run_inference(other_sess, {tensor['input']: embeddings_msd_per_patch}, tensor['output'], fallback_model=tensor['model'])
 
             if probabilities_per_patch is None:
                 categories[key] = None
@@ -665,7 +659,7 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
             logger.error(f"Error predicting '{key}' for {os.path.basename(file_path)}: {e}", exc_info=True)
             categories[key] = None
         finally:
-            del feed_dict, probabilities_per_patch
+            del probabilities_per_patch
 
     # --- 5. Run Discogs Feature Models ---
     try:
@@ -673,15 +667,12 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
         tensor = DEFINED_TENSORS['Embedding_discogs']
         embedding_discogs_sess = onnx_sessions['Embedding_discogs']
 
-        embedding_discogs_feed_dict = {tensor['input']: final_patches_discogs}
-        embeddings_discogs_per_patch = run_inference(embedding_discogs_sess, embedding_discogs_feed_dict, tensor['output'],
+        embeddings_discogs_per_patch = run_inference(embedding_discogs_sess, {tensor['input']: final_patches_discogs}, tensor['output'],
                                                      fallback_model=tensor['model'])
 
     except Exception as e:
         logger.error(f"Discogs model inference failed for {os.path.basename(file_path)}: {e}", exc_info=True)
         return None, None
-    finally:
-        del embedding_discogs_feed_dict
 
     for key in DISCOGS_FEATURE_LABELS:
         other_sess = None
@@ -690,8 +681,7 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
             other_sess = onnx_sessions[key]
             tensor = DEFINED_TENSORS[key]
 
-            feed_dict = {tensor['input']: embeddings_discogs_per_patch}
-            probabilities_per_patch = run_inference(other_sess, feed_dict, tensor['output'], fallback_model=tensor['model'])
+            probabilities_per_patch = run_inference(other_sess, {tensor['input']: embeddings_discogs_per_patch}, tensor['output'], fallback_model=tensor['model'])
 
             if probabilities_per_patch is None:
                 categories[key] = None
@@ -710,7 +700,7 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
             logger.error(f"Error predicting '{key}' for {os.path.basename(file_path)}: {e}", exc_info=True)
             categories[key] = None
         finally:
-            del feed_dict,probabilities_per_patch
+            del probabilities_per_patch
 
 
     try:
@@ -718,8 +708,7 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
         genre_sess = onnx_sessions['Genre']
         tensor = DEFINED_TENSORS['Genre']
 
-        genre_feed_dict = {tensor['input']: embeddings_discogs_per_patch}
-        genre_logits = run_inference(genre_sess, genre_feed_dict, tensor['output'], fallback_model=tensor['model'])
+        genre_logits = run_inference(genre_sess, {tensor['input']: embeddings_discogs_per_patch}, tensor['output'], fallback_model=tensor['model'])
 
         averaged_logits = np.mean(genre_logits, axis=0)
 
@@ -735,15 +724,14 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
         logger.error(f"Discogs Genres inference failed for {os.path.basename(file_path)}: {e}", exc_info=True)
         return None, None
     finally:
-        del genre_feed_dict, genre_logits,averaged_logits#,final_genre_predictions
+        del genre_logits,averaged_logits#,final_genre_predictions
 
     try:
         # Use pre-loaded session
         discog_moods_sess = onnx_sessions['Discogs_moods']
         tensor = DEFINED_TENSORS['Discogs_moods']
 
-        discog_moods_feed_dict = {tensor['input']: embeddings_discogs_per_patch}
-        discog_moods_logits = run_inference(discog_moods_sess, discog_moods_feed_dict, tensor['output'], fallback_model=tensor['model'])
+        discog_moods_logits = run_inference(discog_moods_sess, {tensor['input']: embeddings_discogs_per_patch}, tensor['output'], fallback_model=tensor['model'])
 
         averaged_logits = np.mean(discog_moods_logits, axis=0)
         # Apply sigmoid to convert raw model outputs (logits) into probabilities
@@ -758,7 +746,7 @@ def analyze_track(file_path, onnx_sessions, top_n_moods=3):
         logger.error(f"Discogs Moods inference failed for {os.path.basename(file_path)}: {e}", exc_info=True)
         return None, None
     finally:
-        del discog_moods_feed_dict,discog_moods_logits,averaged_logits#,final_discog_moods_predictions
+        del discog_moods_logits,averaged_logits#,final_discog_moods_predictions
 
     # --- 5. Final Aggregation for Storage ---
     processed_embeddings = np.mean(embeddings_msd_per_patch, axis=0)
@@ -845,7 +833,7 @@ def analyze_files(file_paths: list, directory_name, session_handler:SessionHandl
     # 2. Start the stopwatch
     start_time = time.perf_counter()
 
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Directory analysis task started.")
+    logger.info(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Directory analysis task started.")
 
     tracks_analyzed_count, tracks_skipped_count, current_progress_val = 0, 0, 0
 
