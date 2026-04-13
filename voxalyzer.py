@@ -10,12 +10,25 @@
 # nuitka-project: --mingw64
 # nuitka-project: --output-dir=dist
 import logging
+import os
+from pathlib import Path
 
 from analyzer_onnx import analyze_files
 from mp3 import clean_mp3, list_mp3s, update_mp3_results
 from utils import AnalyzeResult
 
 logging.basicConfig(level=logging.INFO)
+
+app_name = "DungeonTuber"
+log_dir = Path(os.environ['APPDATA']) / app_name / "logs"
+log_dir.mkdir(parents=True, exist_ok=True)
+
+logging.basicConfig(
+    filename= log_dir.joinpath('voxalyzer.log'),
+    filemode='a',
+    level=logging.INFO,
+    force=True
+)
 
 logger = logging.getLogger(__name__)
 import os
