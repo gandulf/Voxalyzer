@@ -87,12 +87,13 @@ async def analyze_endpoint(request: Request):
             os.remove(tmp_path)
         return {"error": str(e)}
 
-def serve(port:int = 8000):
+def serve(host:str="127.0.0.1", port:int = 8000):
     global session
     import uvicorn
 
     session = begin_session()
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host=host, port=port)
+
     end_session(session)
 
 if __name__ == "__main__":

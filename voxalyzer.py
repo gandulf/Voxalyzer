@@ -37,6 +37,7 @@ def main():
     args = [arg for arg in sys.argv if not arg.endswith(".exe") and not arg.endswith(".py")]
 
     port = 8000
+    host = "127.0.0.1"
     try:
         index = args.index("--port")
         args.pop(index)
@@ -44,9 +45,16 @@ def main():
     except ValueError:
         pass
 
+    try:
+        index = args.index("--host")
+        args.pop(index)
+        host = args.pop(index)
+    except ValueError:
+        pass
+
     if len(args) == 0:
         import server
-        server.serve(port)
+        server.serve(host, port)
     else:
         force = False
         clean = False
