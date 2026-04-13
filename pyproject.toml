@@ -17,7 +17,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "flake8>=7.3.0",
-    "Nuitka==2.8.10",
     "pyinstaller>=6.18.0",
     "zstandard>=0.25.0"
 ]
