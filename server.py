@@ -25,7 +25,10 @@ def _analyze_safe(file_path: str, cleanup_file:bool = False):
     try:
         with analysis_lock:
             result =  analyze_file(file_path, session_handler=session, force=True)
-            logger.info(f"Analyzed {file_path} with result {result}")
+            try:
+                logger.info(f"Analyzed {file_path} with result {result}")
+            except Exception as e:
+                logger.error(e)
             return result
     finally:
         if cleanup_file and os.path.exists(file_path):
