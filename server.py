@@ -28,7 +28,7 @@ def _analyze_safe(file_path: str, cleanup_file:bool = False):
 
 @app.get("/voxalyzer")
 def voxalyzer():
-    return MODEL_VERSION
+    return "Voxalyzer "+MODEL_VERSION
 
 @app.post("/analyze")
 async def analyze_endpoint(request: Request):
