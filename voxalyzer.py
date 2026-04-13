@@ -95,7 +95,8 @@ def main():
                         analyze_files(files, directory_name=arg, force=force, handle_result_callback=handle_analyze_result)
                 except KeyboardInterrupt:
                     sys.exit(0)
-                except Exception:
+                except Exception as e:
+                    logger.error(e, exc_info=True)
                     traceback.print_exc()
             elif arg.lower().endswith(".exe"):
                 pass

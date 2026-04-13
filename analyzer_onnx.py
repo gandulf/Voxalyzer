@@ -526,7 +526,7 @@ def _extract_features_librosa(audio, sr):
         musical_key = key_vals[minor_key_idx]
         scale = 'minor'
 
-    return {'bpm': int(round(float(tempo))),
+    return {'bpm': int(round(float(tempo.item()))),
             'energy': to_ten(float(average_energy)),
             'musical_key': musical_key,
             'scale': scale}

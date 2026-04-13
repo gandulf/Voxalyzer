@@ -25,10 +25,7 @@ def _analyze_safe(file_path: str, cleanup_file:bool = False):
     try:
         with analysis_lock:
             result =  analyze_file(file_path, session_handler=session, force=True)
-            try:
-                logger.info(f"Analyzed {file_path} with result {result}")
-            except Exception as e:
-                logger.error(e)
+            logger.info(f"Analyzed {file_path} wit result {result}")
             return result
     finally:
         if cleanup_file and os.path.exists(file_path):
@@ -80,7 +77,7 @@ async def analyze_endpoint(request: Request):
         return await run_in_threadpool(_analyze_safe, tmp_path, cleanup_file=cleanup_file)
 
     except Exception as e:
-        logger.error(e)
+        logger.error(e, exc_info=True)
         # Cleanup if something failed before _analyze_safe was called
         # or if _analyze_safe failed but somehow didn't clean up (unlikely due to finally)
         if tmp_path and os.path.exists(tmp_path) and cleanup_file:
