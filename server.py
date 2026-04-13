@@ -2,11 +2,14 @@ import os
 import shutil
 import tempfile
 import threading
+import logging
 from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 
 from analyzer_onnx import begin_session, end_session, SessionHandler, analyze_file
 from voxalyzer import MODEL_VERSION
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -21,7 +24,9 @@ def _analyze_safe(file_path: str, cleanup_file:bool = False):
     """
     try:
         with analysis_lock:
-            return analyze_file(file_path, session_handler=session, force=True)
+            result =  analyze_file(file_path, session_handler=session, force=True)
+            logger.info(f"Analyzed {file_path} with result {result}")
+            return result
     finally:
         if cleanup_file and os.path.exists(file_path):
             os.remove(file_path)
@@ -60,6 +65,7 @@ async def analyze_endpoint(request: Request):
             # Handle raw binary upload
             body = await request.body()
             if not body:
+                logger.error("Request body is empty.")
                 return {"error": "Request body is empty."}
                 
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
@@ -71,6 +77,7 @@ async def analyze_endpoint(request: Request):
         return await run_in_threadpool(_analyze_safe, tmp_path, cleanup_file=cleanup_file)
 
     except Exception as e:
+        logger.error(e)
         # Cleanup if something failed before _analyze_safe was called
         # or if _analyze_safe failed but somehow didn't clean up (unlikely due to finally)
         if tmp_path and os.path.exists(tmp_path) and cleanup_file:
